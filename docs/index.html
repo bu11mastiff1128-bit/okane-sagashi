@@ -26,7 +26,7 @@ img{max-width:100%}
 :root{
   --bg:#EAF0EB; --surface:#F8FBF8; --fg:#1F2B26; --muted:#5E6F67; --line:#C9D5CE;
   --accent:#1D6B62; --accent-fg:#FFFFFF; --edge:#2A3832; --grid:rgba(42,56,50,.22);
-  --x:#3C4A44; --lockx:#000000; --bad:#C2413A; --gold:#A8740A; --life:#E2643C; --tray:#DCE6DF;
+  --x:#3C4A44; --lockx:#000000; --bad:#B3001B; --gold:#A8740A; --life:#E2643C; --tray:#DCE6DF;
   --r0:#F3B4AD; --r1:#F5D689; --r2:#B6DB9C; --r3:#9ED2E4; --r4:#C4B4EC;
   --r5:#F4BDD7; --r6:#F2C59A; --r7:#A6DECD; --r8:#D7CDB6;
   --f-display:"Mochiy Pop One","Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
@@ -35,13 +35,13 @@ img{max-width:100%}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#121816; --surface:#1B2320; --fg:#E4ECE8; --muted:#97A8A0; --line:#2F3B36;
   --accent:#5CC2B3; --accent-fg:#0E1714; --edge:#0B100E; --grid:rgba(0,0,0,.35);
-  --x:#E9F0EC; --lockx:#000000; --bad:#FF7A70; --gold:#F2C14E; --life:#FF8A5C; --tray:#0F1513;
+  --x:#E9F0EC; --lockx:#000000; --bad:#FF8A80; --gold:#F2C14E; --life:#FF8A5C; --tray:#0F1513;
   --r0:#8B4C46; --r1:#8A7232; --r2:#557A42; --r3:#3B6E82; --r4:#665690;
   --r5:#894B6A; --r6:#8D5F37; --r7:#3B7A68; --r8:#6A6250; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121816; --surface:#1B2320; --fg:#E4ECE8; --muted:#97A8A0; --line:#2F3B36;
   --accent:#5CC2B3; --accent-fg:#0E1714; --edge:#0B100E; --grid:rgba(0,0,0,.35);
-  --x:#E9F0EC; --lockx:#000000; --bad:#FF7A70; --gold:#F2C14E; --life:#FF8A5C; --tray:#0F1513;
+  --x:#E9F0EC; --lockx:#000000; --bad:#FF8A80; --gold:#F2C14E; --life:#FF8A5C; --tray:#0F1513;
   --r0:#8B4C46; --r1:#8A7232; --r2:#557A42; --r3:#3B6E82; --r4:#665690;
   --r5:#894B6A; --r6:#8D5F37; --r7:#3B7A68; --r8:#6A6250; color-scheme:dark}
 [hidden]{display:none!important}
@@ -93,7 +93,8 @@ h1 .badge>*{width:100%;height:100%}
 .cell .mk{width:46%;height:46%;pointer-events:none}
 .cell .pc{width:84%;height:84%;pointer-events:none;animation:pop .35s cubic-bezier(.2,1.6,.4,1)}
 .cell .pc>*{width:100%;height:100%;display:block;object-fit:contain}
-.cell.bad .mk line{stroke:var(--bad)}
+.cell.bad .mk line{stroke:var(--bad);stroke-width:4.5}
+.cell.bad::after{background:color-mix(in srgb,var(--bad) 22%,transparent)}
 .cell.lockx::after{background:color-mix(in srgb,var(--lockx) 18%,transparent)}
 .cell.lockx .mk line{stroke:var(--lockx);stroke-width:4}
 .cell.bad{animation:shake .35s}
@@ -188,13 +189,13 @@ button.wallet .wl{letter-spacing:.02em}
 .swatch{display:grid;grid-template-columns:repeat(3,1fr);width:100%;height:100%}
 .swatch i{display:block}
 /* 盤面デザイン：トレイの中だけ色を上書き（--lockx は固定した×。ふつうの×・間違い×と見分けやすい色） */
-.tray.b-wood{--tray:#6B4A2E;--edge:#3A2412;--grid:rgba(58,36,18,.3);--x:#3A2412;--lockx:#1F3A93;
+.tray.b-wood{--tray:#6B4A2E;--edge:#3A2412;--grid:rgba(58,36,18,.3);--x:#3A2412;--lockx:#1F3A93;--bad:#B3001B;
   --r0:#E9C9A0;--r1:#D9A877;--r2:#F1DDB8;--r3:#C99566;--r4:#E2B98C;--r5:#B98557;--r6:#F5E6CA;--r7:#D3A06E;--r8:#C7A27C}
 .tray.b-wood .cell{background-image:repeating-linear-gradient(100deg,rgba(90,55,25,.10) 0 2px,transparent 2px 9px),repeating-linear-gradient(95deg,rgba(255,255,255,.12) 0 1px,transparent 1px 13px)}
-.tray.b-wa{--tray:#2B2F4A;--edge:#1C1E30;--grid:rgba(28,30,48,.25);--x:#1C1E30;--lockx:#0E5A3A;
+.tray.b-wa{--tray:#2B2F4A;--edge:#1C1E30;--grid:rgba(28,30,48,.25);--x:#1C1E30;--lockx:#0E5A3A;--bad:#B3001B;
   --r0:#F4B3C2;--r1:#9FC97A;--r2:#7FA4D6;--r3:#F2C75C;--r4:#B8A2D6;--r5:#E87A5D;--r6:#7FC8C2;--r7:#C8D86A;--r8:#B9B4AA}
 .tray.b-wa .cell{background-image:radial-gradient(circle at 50% 100%,transparent 9px,rgba(255,255,255,.35) 10px,transparent 11px,transparent 15px,rgba(255,255,255,.3) 16px,transparent 17px);background-size:24px 12px}
-.tray.b-night{--tray:#0B1026;--edge:#C9D2FF;--grid:rgba(201,210,255,.18);--x:#E8ECFF;--lockx:#FFD54A;--bad:#FF8C8C;
+.tray.b-night{--tray:#0B1026;--edge:#C9D2FF;--grid:rgba(201,210,255,.18);--x:#E8ECFF;--lockx:#FFD54A;--bad:#FF9E9E;
   --r0:#2A2F6B;--r1:#3B2A6B;--r2:#1F4B6B;--r3:#4B2A55;--r4:#1E5A55;--r5:#2F3F7A;--r6:#55305E;--r7:#24405E;--r8:#3A3A52}
 .tray.b-night .cell{background-image:radial-gradient(1.2px 1.2px at 20% 30%,#fff,transparent),radial-gradient(1px 1px at 70% 60%,#fff,transparent),radial-gradient(1.4px 1.4px at 45% 85%,#fffbe0,transparent),radial-gradient(1px 1px at 85% 15%,#fff,transparent)}
 .tnow{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
