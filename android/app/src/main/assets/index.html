@@ -305,7 +305,7 @@ button.wallet .wl{letter-spacing:.02em}
       <li>お金は各行・各列に1枚ずつあります</li>
       <li>同じ色のエリアにも1枚ずつあります</li>
       <li>お金同士は、斜めも含めて隣り合いません</li>
-      <li>間違った場所を選ぶとライフが1つ減ります。3つなくなるとやり直しで、その問題で見つけたお金はもらえません</li>
+      <li>間違った場所を選ぶとライフが1つ減ります。3つなくなると新しい問題になり、その問題で見つけたお金はもらえません</li>
       <li>見つけたお金はときどき「あたり」になり、2倍・3倍・5倍、まれに10倍になります</li>
       <li>クリアすると見つけたお金と、残りライフ1つにつき1枚分のボーナスが所持金に入ります。ステージが上がるほど1枚の金額が大きくなります</li>
       <li>盤面の下のアイテムは所持金で買ってすぐ使えます。右上の所持金かお店ボタンから、称号の確認とスクラッチくじができます</li>
@@ -734,7 +734,11 @@ function newPuzzle(seed){
   clearInterval(timerId);timerId=null;over=true;
   $('overlay').hidden=true;
   let n,tier=null;
-  if(mode==='stage'){const sp=stageSpec(stage);n=sp.n;tier=sp.tier;seed=seed??(stage*7919+13);}
+  if(mode==='stage'){
+    const sp=stageSpec(stage),ss=store.get('stageSeed',null);n=sp.n;tier=sp.tier;
+    // ライフが尽きたステージは別の問題にする
+    seed=seed??(ss&&ss.stage===stage?ss.seed:stage*7919+13);
+  }
   else{n=freeSize;tier=freeTier;seed=seed??(Math.floor(Math.random()*90000)+10000);}
   setMsg('問題を作っています…');
   renderHeader(tier);
@@ -1206,20 +1210,21 @@ function win(){
 }
 function lose(){
   over=true;clearInterval(timerId);clearGame();renderItems();reviveOffer=true;earnHTML=`<span>見つけていたお金</span><span>${yen(pending)}</span><span class="tot">持ち帰れませんでした</span><span class="tot">0円</span>`;
-  if(mode==='stage')showOverlay('ライフがなくなりました','このステージをもう一度やり直しましょう',null,'やり直す');
-  else showOverlay('ライフがなくなりました','同じ問題でやり直すか、新しい問題に進めます','同じ問題','次の問題');
+  // ライフが尽きたら同じ問題には戻らず、新しい問題にする（ステージは同じレベルの別の問題）
+  if(mode==='stage')store.set('stageSeed',{stage,seed:Math.floor(Math.random()*900000)+100000});
+  showOverlay('ライフがなくなりました',mode==='stage'?'このステージの新しい問題に挑戦しましょう':'新しい問題に挑戦しましょう',null,'新しい問題');
 }
 let ovRetrySeed=null,earnHTML='',reviveOffer=false;
 function showOverlay(title,text,retryLabel,nextLabel){
   $('ovRetry').hidden=!retryLabel;if(retryLabel)$('ovRetry').textContent=retryLabel;$('ovNext').textContent=nextLabel;
-  ovRetrySeed=P.seed;nextIsRetry=(mode==='stage'&&lives<=0);
+  ovRetrySeed=P.seed;
   const rp=REVIVE_MULT*curValue;
   $('ovRevive').hidden=!(reviveOffer&&wallet>=rp);$('ovRevive').textContent=`復活してつづける（${yen(rp)}）`;reviveOffer=false;
   $('ovEarn').innerHTML=earnHTML;$('ovEarn').hidden=!earnHTML;earnHTML='';
   $('ovTitle').textContent=title;$('ovText').innerText=text;$('ovPic').innerHTML=pieceHTML(curValue);
   $('overlay').hidden=false;$('ovNext').focus();
 }
-let nextIsRetry=false,stayNext=false;
+let stayNext=false;
 $('ovRetry').onclick=()=>newPuzzle(ovRetrySeed);
 $('ovRevive').onclick=()=>{
   const rp=REVIVE_MULT*curValue;if(wallet<rp)return;
@@ -1227,8 +1232,7 @@ $('ovRevive').onclick=()=>{
   t0=null;startTimer();setMsg('復活しました！ ライフ1でつづけます');sound('lucky',3);
 };
 $('ovNext').onclick=()=>{
-  if(nextIsRetry)newPuzzle(ovRetrySeed);
-  else if(stayNext){stayNext=false;newPuzzle(Math.floor(Math.random()*900000)+100000);}
+  if(stayNext){stayNext=false;newPuzzle(Math.floor(Math.random()*900000)+100000);}
   else newPuzzle();
 };
 
