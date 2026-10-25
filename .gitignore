@@ -1,0 +1,9 @@
+.DS_Store
+android/.gradle/
+android/.idea/
+android/local.properties
+android/build/
+android/app/build/
+android/captures/
+*.iml
+*.apk
