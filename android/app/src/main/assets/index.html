@@ -124,6 +124,8 @@ h1 .badge>*{width:100%;height:100%}
 .panel{display:flex;flex-direction:column;gap:14px;text-align:left}
 .panel h2{text-align:center}
 .opt{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:700}
+.opt .chip{white-space:nowrap}
+.opt>.chip,.opt>.tabs{flex-shrink:0}
 .opt small{display:block;font-weight:500;color:var(--muted);font-size:.8rem;margin-top:2px}
 .switch{appearance:none;-webkit-appearance:none;flex:none;width:50px;height:30px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;transition:background .2s;margin:0}
 .switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--surface);transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
@@ -151,6 +153,12 @@ button.wallet .wl{letter-spacing:.02em}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .shop{max-width:420px;max-height:min(86vh,720px);overflow:hidden}
 .shop .scroll{overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:12px}
+.backup{max-width:420px;max-height:min(86vh,720px);overflow:hidden}
+.backup .scroll{overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:12px}
+.bkrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.backup textarea{font:inherit;font-size:.75rem;width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:10px;
+  background:var(--surface);color:var(--fg);padding:8px;resize:none;word-break:break-all}
+.bkmsg{min-height:1.4em;text-align:center;font-weight:700}
 .shopwallet{text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
 .shopwallet b{color:var(--gold);font-size:1.1rem}
 .sec{background:var(--bg);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
@@ -389,7 +397,37 @@ button.wallet .wl{letter-spacing:.02em}
       <input type="file" id="imgUp" accept="image/*">
     </div>
     <div class="opt"><span>ステージの進み具合<small id="progText"></small></span><button class="chip danger" type="button" id="resetBtn">最初に戻す</button></div>
+    <div class="opt"><span>データのバックアップ<small>アイコンを追加し直すときや、別の端末に移すときに</small></span><button class="chip" type="button" id="backupBtn">開く</button></div>
     <button class="btn primary" type="button" id="setClose">閉じる</button>
+  </div>
+</div>
+
+<div class="overlay" id="backup" hidden>
+  <div class="card panel backup" role="dialog" aria-modal="true" aria-labelledby="bkTitle">
+    <h2 id="bkTitle">バックアップ</h2>
+    <div class="scroll">
+      <section class="sec">
+        <h3>1. 書き出す</h3>
+        <small>所持金・家具・称号・進み具合・遊んでいる途中の問題などを、1つのコードにまとめます。コピーして「メモ」アプリなどに貼り付けて残してください。</small>
+        <div class="bkrow">
+          <button class="btn slim" type="button" id="bkCopy">コードをコピー</button>
+          <button class="btn slim" type="button" id="bkFile">ファイルに保存</button>
+        </div>
+        <textarea id="bkOut" readonly rows="3" hidden aria-label="バックアップのコード"></textarea>
+      </section>
+      <section class="sec">
+        <h3>2. 読み込む</h3>
+        <small>書き出したコードを貼り付けて「読み込む」を押します。<b class="danger">今このアプリに入っているデータは上書きされます。</b></small>
+        <textarea id="bkIn" rows="3" placeholder="ここにコードを貼り付け" aria-label="読み込むコード"></textarea>
+        <div class="bkrow">
+          <button class="btn slim" type="button" id="bkPaste">貼り付け</button>
+          <label class="btn slim" id="bkOpen">ファイルから<input type="file" id="bkFileIn" accept=".txt,text/plain" hidden></label>
+        </div>
+        <button class="btn" type="button" id="bkLoad">読み込む</button>
+      </section>
+      <p class="bkmsg" id="bkMsg" aria-live="polite"></p>
+    </div>
+    <button class="btn primary" type="button" id="bkClose">閉じる</button>
   </div>
 </div>
 
@@ -824,8 +862,9 @@ function snapshot(){history.push(marks.slice());if(history.length>200)history.sh
 
 // ===== 途中保存（アプリを閉じても続きから遊べる） =====
 let lucky={};         // あたりが出たマス → 倍率
+let noSave=false;     // バックアップを読み込んで再起動する間は保存しない
 function saveGame(){
-  if(!P||over)return;
+  if(!P||over||noSave)return;
   store.set('game',{v:1,mode,stage,freeSize,freeTier,P,marks,locks,lives,maxLives,history:history.slice(-30),
     elapsed,curValue,pending,baseSum,luckExtra,luckCount,used,lucky});
 }
@@ -1558,6 +1597,86 @@ $('imgUp').addEventListener('change',e=>{
   };
   img.src=url;
 });
+
+// ===== バックアップ（書き出し・読み込み） =====
+// nawabari. で始まる保存データをすべてまとめ、UTF-8→base64 の1行のコードにする
+const BK_HEAD='TINYSTASH1:';
+const inAndroidApp=location.hostname==='appassets.androidplatform.net';
+function makeBackup(){
+  if(P&&!over){if(t0)tick();saveGame();}
+  const data={};
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('nawabari.'))data[k]=localStorage.getItem(k);}
+  const bytes=new TextEncoder().encode(JSON.stringify({app:'tinystash',v:1,at:new Date().toISOString(),data}));
+  let bin='';for(let i=0;i<bytes.length;i+=0x8000)bin+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+  return BK_HEAD+btoa(bin);
+}
+function parseBackup(text){
+  const s=text.replace(/\s+/g,'');
+  if(!s.startsWith(BK_HEAD))return null;
+  try{
+    const bin=atob(s.slice(BK_HEAD.length));
+    const o=JSON.parse(new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0))));
+    if(o.app!=='tinystash'||!o.data||typeof o.data!=='object')return null;
+    for(const [k,v] of Object.entries(o.data))if(!k.startsWith('nawabari.')||typeof v!=='string')return null;
+    return o;
+  }catch(e){return null;}
+}
+const bkMsg=(t,bad)=>{$('bkMsg').textContent=t;$('bkMsg').classList.toggle('danger',!!bad);};
+let bkArm=false;
+function resetBkLoad(){bkArm=false;$('bkLoad').textContent='読み込む';$('bkLoad').classList.remove('danger');}
+$('backupBtn').onclick=()=>{
+  $('settings').hidden=true;$('bkOut').hidden=true;$('bkIn').value='';bkMsg('');resetBkLoad();
+  // Android アプリではファイルの保存・選択が使えないので、コードのコピーだけにする
+  $('bkFile').hidden=inAndroidApp;$('bkOpen').hidden=inAndroidApp;
+  $('backup').hidden=false;$('bkClose').focus();
+};
+$('bkClose').onclick=()=>{$('backup').hidden=true;};
+$('bkCopy').onclick=async()=>{
+  const code=makeBackup(),out=$('bkOut');
+  out.value=code;out.hidden=false;
+  try{await navigator.clipboard.writeText(code);bkMsg('コピーしました。メモアプリなどに貼り付けて残してください');}
+  catch(e){
+    out.select();let ok=false;try{ok=document.execCommand('copy');}catch(e2){}
+    bkMsg(ok?'コピーしました。メモアプリなどに貼り付けて残してください':'下のコードを長押しして、すべて選択してコピーしてください',!ok);
+  }
+};
+$('bkFile').onclick=async()=>{
+  const d=new Date(),name=`tinystash-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.txt`;
+  const file=new File([makeBackup()],name,{type:'text/plain'});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});bkMsg('「ファイルに保存」を選ぶと、ファイルアプリに残せます');return;}
+  }catch(e){if(e.name==='AbortError')return;}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  bkMsg(`${name} を保存しました`);
+};
+$('bkPaste').onclick=async()=>{
+  try{$('bkIn').value=await navigator.clipboard.readText();resetBkLoad();bkMsg('貼り付けました。「読み込む」を押してください');}
+  catch(e){bkMsg('枠を長押しして「ペースト」を選んでください',true);}
+};
+$('bkFileIn').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  $('bkIn').value=await f.text();e.target.value='';resetBkLoad();bkMsg('ファイルを読み取りました。「読み込む」を押してください');
+});
+$('bkIn').addEventListener('input',resetBkLoad);
+$('bkLoad').onclick=()=>{
+  const o=parseBackup($('bkIn').value);
+  if(!o){resetBkLoad();bkMsg('コードが正しくありません。全部コピーできているか確認してください',true);return;}
+  const w=JSON.parse(o.data['nawabari.wallet']??'0');
+  if(!bkArm){
+    bkArm=true;$('bkLoad').textContent='もう一度押すと読み込みます';$('bkLoad').classList.add('danger');
+    bkMsg(`${new Date(o.at).toLocaleString('ja-JP')} のデータ（所持金 ${yen(w)}）です。今のデータは上書きされます`);
+    return;
+  }
+  noSave=true;
+  const old=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('nawabari.'))old.push(k);}
+  try{
+    for(const k of old)localStorage.removeItem(k);
+    for(const [k,v] of Object.entries(o.data))localStorage.setItem(k,v);
+  }catch(e){noSave=false;resetBkLoad();bkMsg('保存に失敗しました。端末の空き容量を確認してください',true);return;}
+  bkMsg('読み込みました。再起動します…');
+  setTimeout(()=>location.reload(),600);
+};
 
 buildSelectors();renderBadge();showWallet();renderTitle();applyBoardStyle();if(!restoreGame())newPuzzle();
 </script>
