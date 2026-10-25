@@ -16,7 +16,7 @@ import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 
 /**
- * おかねさがし：assets/index.html を WebView で表示するだけのアプリ。
+ * Tiny Stash：assets/index.html を WebView で表示するだけのアプリ。
  * https://appassets.androidplatform.net/ として読み込むので、所持金などの保存（localStorage）が確実に残る。
  */
 class MainActivity : ComponentActivity() {
