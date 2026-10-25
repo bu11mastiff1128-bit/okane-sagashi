@@ -730,7 +730,8 @@ let lives=MAXLIFE, history=[], over=false, t0=null, elapsed=0, timerId=null, U=n
 const $=id=>document.getElementById(id);
 const boardEl=$('board');
 
-function newPuzzle(seed){
+// keep: 「最初から」のときに引き継ぐライフ・アイテム
+function newPuzzle(seed,keep=null){
   clearInterval(timerId);timerId=null;over=true;
   $('overlay').hidden=true;
   let n,tier=null;
@@ -751,6 +752,7 @@ function newPuzzle(seed){
     marks=new Array(size*size).fill(0);locks=new Array(size*size).fill(0);lives=MAXLIFE;history=[];over=false;
     curValue=valueFor();pending=0;baseSum=0;luckExtra=0;luckCount=0;$('pend').textContent='0円';
     used={};lucky={};maxLives=MAXLIFE;glassMode=false;
+    if(keep){lives=keep.lives;maxLives=keep.maxLives;used=keep.used;}
     t0=null;elapsed=0;$('time').textContent='0:00';
     $('pno').textContent=size+'-'+seed;
     setMsg((mode==='free'?`${n}×${n}「${DIFF[P.tier]}」・`:'')+`この問題のお金は1枚${yen(curValue)}。タップで×、ダブルタップで見つけます`);
@@ -1065,7 +1067,8 @@ $('unlockBtn').onclick=()=>{
   setMsg(n?`固定を${n}個解除しました`:'固定した×はありません');
 };
 $('newBtn').onclick=()=>newPuzzle();
-$('restartBtn').onclick=()=>{if(P)newPuzzle(P.seed);};
+// 最初から：盤面だけ戻し、減ったライフは戻さない
+$('restartBtn').onclick=()=>{if(P&&lives>0)newPuzzle(P.seed,{lives,maxLives,used});};
 $('settingsBtn').onclick=()=>{renderProg();$('autoX').checked=autoX;$('sfx').checked=sfxOn;$('progText').textContent=`いまステージ ${stage}／最高 ${maxStage}`;resetArm=false;$('resetBtn').textContent='最初に戻す';$('settings').hidden=false;$('setClose').focus();};
 $('setClose').onclick=()=>{$('settings').hidden=true;};
 function renderProg(){for(const b of $('progSel').children)b.setAttribute('aria-pressed',b.dataset.p===progress);}
