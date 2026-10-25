@@ -731,7 +731,7 @@ function newPuzzle(seed){
     peerCache=[...Array(size*size)].map((_,k)=>peers(size,P.reg,k));
     marks=new Array(size*size).fill(0);lives=MAXLIFE;history=[];over=false;
     curValue=valueFor();pending=0;baseSum=0;luckExtra=0;luckCount=0;$('pend').textContent='0円';
-    used={};maxLives=MAXLIFE;glassMode=false;
+    used={};lucky={};maxLives=MAXLIFE;glassMode=false;
     t0=null;elapsed=0;$('time').textContent='0:00';
     $('pno').textContent=size+'-'+seed;
     setMsg((mode==='free'?`${n}×${n}「${DIFF[P.tier]}」・`:'')+`この問題のお金は1枚${yen(curValue)}。タップで×、ダブルタップで見つけます`);
@@ -783,20 +783,56 @@ function render(){
     c.innerHTML=m===1||m===3?XMARK:m===2?`<div class="pc">${pieceHTML()}</div>`:'';
     c.setAttribute('aria-label',`${((k/size)|0)+1}行${k%size+1}列 `+(m===2?'配置':m?'×':'空'));
   }
+  saveGame();
 }
 function rerenderPieces(){for(const c of boardEl.children)c.dataset.m='';render();renderLives();renderBadge();}
 function renderLives(){
   $('lives').innerHTML='';
   for(let i=0;i<maxLives;i++){const s=document.createElement('span');s.innerHTML=lifeHTML();if(i>=lives)s.classList.add('lost');$('lives').appendChild(s);}
+  saveGame();
 }
 function renderBadge(){$('badge').innerHTML=pieceHTML(500);}
 function setMsg(t){$('msg').textContent=t;}
 
 function startTimer(){if(t0||over)return;t0=Date.now()-elapsed*1000;timerId=setInterval(tick,500);}
-function tick(){elapsed=Math.floor((Date.now()-t0)/1000);$('time').textContent=fmt(elapsed);}
+function tick(){const e=Math.floor((Date.now()-t0)/1000),changed=e!==elapsed;elapsed=e;$('time').textContent=fmt(elapsed);if(changed&&e%5===0)saveGame();}
 function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 
 function snapshot(){history.push(marks.slice());if(history.length>200)history.shift();}
+
+// ===== 途中保存（アプリを閉じても続きから遊べる） =====
+let lucky={};         // あたりが出たマス → 倍率
+function saveGame(){
+  if(!P||over)return;
+  store.set('game',{v:1,mode,stage,freeSize,freeTier,P,marks,lives,maxLives,history:history.slice(-30),
+    elapsed,curValue,pending,baseSum,luckExtra,luckCount,used,lucky});
+}
+function clearGame(){try{localStorage.removeItem('nawabari.game');}catch(e){}}
+function restoreGame(){
+  const g=store.get('game',null);
+  if(!g||g.v!==1||!g.P||g.mode!==mode)return false;
+  if(mode==='stage'?g.stage!==stage:(g.freeSize!==freeSize||g.freeTier!==freeTier))return false;
+  size=g.P.n;P=g.P;
+  U=units(size,P.reg);
+  peerCache=[...Array(size*size)].map((_,k)=>peers(size,P.reg,k));
+  marks=g.marks;lives=g.lives;maxLives=g.maxLives;history=g.history||[];over=false;
+  curValue=g.curValue;pending=g.pending;baseSum=g.baseSum;luckExtra=g.luckExtra;luckCount=g.luckCount;$('pend').textContent=yen(pending);
+  used=g.used||{};lucky=g.lucky||{};glassMode=false;
+  t0=null;elapsed=g.elapsed||0;$('time').textContent=fmt(elapsed);
+  $('pno').textContent=size+'-'+P.seed;
+  renderHeader(mode==='stage'?stageSpec(stage).tier:freeTier);
+  buildBoard();renderLives();renderBadge();renderItems();
+  for(const [k,m] of Object.entries(lucky)){
+    const c=boardEl.children[k];c.classList.add('lucky');
+    const tag=document.createElement('span');tag.className='mult';tag.textContent='×'+m;c.appendChild(tag);
+  }
+  if(elapsed||marks.some(m=>m))setMsg('前回のつづきから再開しました');
+  else setMsg(`この問題のお金は1枚${yen(curValue)}。タップで×、ダブルタップで見つけます`);
+  return true;
+}
+// アプリを閉じる・裏に回すときに時間も含めて保存
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(t0)tick();saveGame();}});
+addEventListener('pagehide',()=>{if(t0)tick();saveGame();});
 
 function tryPlace(k){
   const n=size,correct=P.sol[(k/n)|0]===k%n;
@@ -830,8 +866,8 @@ function celebrate(k,done){
   const cell=boardEl.children[k],pc=cell.querySelector('.pc');
   if(pc){pc.classList.add('fresh');}
   const mult=rollLuck(),got=curValue*mult;
-  pending+=got;baseSum+=curValue;luckExtra+=got-curValue;if(mult>1)luckCount++;
-  $('pend').textContent=yen(pending);
+  pending+=got;baseSum+=curValue;luckExtra+=got-curValue;if(mult>1){luckCount++;lucky[k]=mult;}
+  $('pend').textContent=yen(pending);saveGame();
   const left=size-done;
   if(mult>1){
     cell.classList.add('lucky');
@@ -1108,7 +1144,7 @@ function hint(){
 }
 
 function win(){
-  over=true;clearInterval(timerId);renderItems();tick();setTimeout(()=>sound('win'),250);
+  over=true;clearInterval(timerId);clearGame();renderItems();tick();setTimeout(()=>sound('win'),250);
   const stats=store.get('stats',{});const s=stats[size]||{clear:0,best:null};
   s.clear++;if(s.best==null||elapsed<s.best)s.best=elapsed;stats[size]=s;store.set('stats',stats);
   for(const c of boardEl.children)if(c.dataset.m==='2')c.classList.add('won');
@@ -1135,7 +1171,7 @@ function win(){
   }else setTimeout(()=>showOverlay('クリア！',text,'同じ問題','次の問題'),650);
 }
 function lose(){
-  over=true;clearInterval(timerId);renderItems();reviveOffer=true;earnHTML=`<span>見つけていたお金</span><span>${yen(pending)}</span><span class="tot">持ち帰れませんでした</span><span class="tot">0円</span>`;
+  over=true;clearInterval(timerId);clearGame();renderItems();reviveOffer=true;earnHTML=`<span>見つけていたお金</span><span>${yen(pending)}</span><span class="tot">持ち帰れませんでした</span><span class="tot">0円</span>`;
   if(mode==='stage')showOverlay('ライフがなくなりました','このステージをもう一度やり直しましょう',null,'やり直す');
   else showOverlay('ライフがなくなりました','同じ問題でやり直すか、新しい問題に進めます','同じ問題','次の問題');
 }
@@ -1482,7 +1518,7 @@ $('imgUp').addEventListener('change',e=>{
   img.src=url;
 });
 
-buildSelectors();renderBadge();showWallet();renderTitle();applyBoardStyle();newPuzzle();
+buildSelectors();renderBadge();showWallet();renderTitle();applyBoardStyle();if(!restoreGame())newPuzzle();
 </script>
 
 <script>
