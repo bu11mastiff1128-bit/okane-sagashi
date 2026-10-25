@@ -187,14 +187,14 @@ button.wallet .wl{letter-spacing:.02em}
 .good .act.done{background:transparent;border-color:var(--line);color:var(--muted);cursor:default}
 .swatch{display:grid;grid-template-columns:repeat(3,1fr);width:100%;height:100%}
 .swatch i{display:block}
-/* 盤面デザイン：トレイの中だけ色を上書き */
-.tray.b-wood{--tray:#6B4A2E;--edge:#3A2412;--grid:rgba(58,36,18,.3);--x:#3A2412;
+/* 盤面デザイン：トレイの中だけ色を上書き（--lockx は固定した×。ふつうの×・間違い×と見分けやすい色） */
+.tray.b-wood{--tray:#6B4A2E;--edge:#3A2412;--grid:rgba(58,36,18,.3);--x:#3A2412;--lockx:#1F3A93;
   --r0:#E9C9A0;--r1:#D9A877;--r2:#F1DDB8;--r3:#C99566;--r4:#E2B98C;--r5:#B98557;--r6:#F5E6CA;--r7:#D3A06E;--r8:#C7A27C}
 .tray.b-wood .cell{background-image:repeating-linear-gradient(100deg,rgba(90,55,25,.10) 0 2px,transparent 2px 9px),repeating-linear-gradient(95deg,rgba(255,255,255,.12) 0 1px,transparent 1px 13px)}
-.tray.b-wa{--tray:#2B2F4A;--edge:#1C1E30;--grid:rgba(28,30,48,.25);--x:#1C1E30;
+.tray.b-wa{--tray:#2B2F4A;--edge:#1C1E30;--grid:rgba(28,30,48,.25);--x:#1C1E30;--lockx:#0E5A3A;
   --r0:#F4B3C2;--r1:#9FC97A;--r2:#7FA4D6;--r3:#F2C75C;--r4:#B8A2D6;--r5:#E87A5D;--r6:#7FC8C2;--r7:#C8D86A;--r8:#B9B4AA}
 .tray.b-wa .cell{background-image:radial-gradient(circle at 50% 100%,transparent 9px,rgba(255,255,255,.35) 10px,transparent 11px,transparent 15px,rgba(255,255,255,.3) 16px,transparent 17px);background-size:24px 12px}
-.tray.b-night{--tray:#0B1026;--edge:#C9D2FF;--grid:rgba(201,210,255,.18);--x:#E8ECFF;--bad:#FF8C8C;
+.tray.b-night{--tray:#0B1026;--edge:#C9D2FF;--grid:rgba(201,210,255,.18);--x:#E8ECFF;--lockx:#FFD54A;--bad:#FF8C8C;
   --r0:#2A2F6B;--r1:#3B2A6B;--r2:#1F4B6B;--r3:#4B2A55;--r4:#1E5A55;--r5:#2F3F7A;--r6:#55305E;--r7:#24405E;--r8:#3A3A52}
 .tray.b-night .cell{background-image:radial-gradient(1.2px 1.2px at 20% 30%,#fff,transparent),radial-gradient(1px 1px at 70% 60%,#fff,transparent),radial-gradient(1.4px 1.4px at 45% 85%,#fffbe0,transparent),radial-gradient(1px 1px at 85% 15%,#fff,transparent)}
 .tnow{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
