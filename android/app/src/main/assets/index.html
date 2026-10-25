@@ -94,6 +94,8 @@ h1 .badge>*{width:100%;height:100%}
 .cell .pc{width:84%;height:84%;pointer-events:none;animation:pop .35s cubic-bezier(.2,1.6,.4,1)}
 .cell .pc>*{width:100%;height:100%;display:block;object-fit:contain}
 .cell.bad .mk line{stroke:var(--bad)}
+.cell.lockx::after{background:color-mix(in srgb,var(--x) 22%,transparent)}
+.cell.lockx .mk line{stroke-width:4.5}
 .cell.bad{animation:shake .35s}
 .cell.hint::after{box-shadow:inset 0 0 0 4px var(--accent);animation:blink 1s ease-in-out 3}
 .cell.hintx::after{background:color-mix(in srgb,var(--accent) 28%,transparent)}
@@ -104,6 +106,9 @@ h1 .badge>*{width:100%;height:100%}
 @keyframes hop{40%{transform:translateY(-14%)}}
 .msg{min-height:1.4em;text-align:center;color:var(--muted);font-size:.92rem;text-wrap:balance}
 .controls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.locks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.btn.slim{flex-direction:row;justify-content:center;gap:6px;padding:7px 4px}
+.btn.slim svg{width:18px;height:18px}
 .btn{font:inherit;font-weight:700;font-size:.88rem;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);
   border-radius:14px;padding:10px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
 .btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -186,6 +191,7 @@ button.wallet .wl{letter-spacing:.02em}
 .tray.b-night .cell{background-image:radial-gradient(1.2px 1.2px at 20% 30%,#fff,transparent),radial-gradient(1px 1px at 70% 60%,#fff,transparent),radial-gradient(1.4px 1.4px at 45% 85%,#fffbe0,transparent),radial-gradient(1px 1px at 85% 15%,#fff,transparent)}
 .tnow{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .tnow b{font-family:var(--f-display);font-weight:400;font-size:1.2rem;color:var(--gold)}
+.tsum{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
 .bar{height:10px;border-radius:999px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,#F2C14E,#E0892F);border-radius:inherit;width:0;transition:width .6s}
 .scratch{position:relative;height:110px;border-radius:12px;overflow:hidden;border:2px solid var(--gold);background:var(--surface)}
@@ -277,6 +283,11 @@ button.wallet .wl{letter-spacing:.02em}
   <div class="tray" id="tray"><div class="boardwrap"><div class="board" id="board" role="grid" aria-label="盤面"></div><svg class="edges" id="edges" aria-hidden="true" preserveAspectRatio="none"></svg></div><div class="fx" id="fx"></div></div>
   <div class="msg" id="msg" aria-live="polite"></div>
 
+  <div class="locks">
+    <button class="btn slim" id="lockBtn" type="button"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>×を固定</button>
+    <button class="btn slim" id="unlockBtn" type="button"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/></svg>固定を解除</button>
+  </div>
+
   <div class="items" id="items" role="group" aria-label="アイテム"></div>
 
   <div class="controls">
@@ -290,6 +301,7 @@ button.wallet .wl{letter-spacing:.02em}
     <summary>遊び方</summary>
     <ul>
       <li>どこかに隠れたお金を推理で見つけます。タップで×、×をもう一度タップで解除、ダブルタップで見つけます</li>
+      <li>「×を固定」を押すと、それまでに付けた×がタップやなぞりで消えなくなります。何回でも押せて、そのたびに新しく付けた×も固定されます。「固定を解除」ですべて元に戻ります</li>
       <li>お金は各行・各列に1枚ずつあります</li>
       <li>同じ色のエリアにも1枚ずつあります</li>
       <li>お金同士は、斜めも含めて隣り合いません</li>
@@ -309,7 +321,7 @@ button.wallet .wl{letter-spacing:.02em}
     <div class="scroll">
       <section class="sec">
         <h3>称号</h3>
-        <div class="tnow"><b id="titleNow"></b><small id="earnedNow"></small></div>
+        <div class="tnow"><b id="titleNow"></b><span class="tsum"><small id="earnedNow"></small><small id="spentNow"></small></span></div>
         <div class="bar" aria-hidden="true"><i id="titleBar"></i></div>
         <small id="titleNext"></small>
       </section>
@@ -666,7 +678,9 @@ const TITLES=[[0,'見習い'],[1e3,'お小遣い持ち'],[1e4,'へそくり上�
 function titleIndex(v=earned){let i=0;for(let j=0;j<TITLES.length;j++)if(v>=TITLES[j][0])i=j;return i;}
 function addEarned(v){const before=titleIndex();earned+=v;store.set('earned',earned);const after=titleIndex();renderTitle();return after>before?TITLES[after][1]:null;}
 function renderTitle(){$('titleName').textContent=TITLES[titleIndex()][1];}
-function spend(v){wallet-=v;store.set('wallet',wallet);showWallet(true);renderItems();}
+// これまでに使った総額（記録を始める前の分は「稼いだ額−所持金」で補う）
+let spent=store.get('spent',Math.max(earned-wallet,0));
+function spend(v){wallet-=v;store.set('wallet',wallet);spent+=v;store.set('spent',spent);showWallet(true);renderItems();}
 // ステージのレベルごとの1枚あたりの金額
 const STAGE_VALUES=[1,5,10,50,100,500,1000,2000,5000,10000,10000,10000];
 // フリーモードの1枚の金額 [サイズ][難易度]
@@ -710,6 +724,7 @@ function applyBoardStyle(){const tr=$('tray');tr.classList.remove('b-wood','b-wa
 // ===== ゲーム状態 =====
 let P=null;           // 問題
 let marks=[];         // 0 空 / 1 × / 2 置いた / 3 間違い×
+let locks=[];         // 1 = 固定した×（タップ・なぞり・取り消しで消えない）
 let lives=MAXLIFE, history=[], over=false, t0=null, elapsed=0, timerId=null, U=null, peerCache=[];
 
 const $=id=>document.getElementById(id);
@@ -729,7 +744,7 @@ function newPuzzle(seed){
     if(P.tier===0){const sz={};P.reg.forEach(g=>sz[g]=(sz[g]||0)+1);if(!Object.values(sz).includes(1))P=generatePuzzle(n,seed,0,{single:true});}
     U=units(size,P.reg);
     peerCache=[...Array(size*size)].map((_,k)=>peers(size,P.reg,k));
-    marks=new Array(size*size).fill(0);lives=MAXLIFE;history=[];over=false;
+    marks=new Array(size*size).fill(0);locks=new Array(size*size).fill(0);lives=MAXLIFE;history=[];over=false;
     curValue=valueFor();pending=0;baseSum=0;luckExtra=0;luckCount=0;$('pend').textContent='0円';
     used={};lucky={};maxLives=MAXLIFE;glassMode=false;
     t0=null;elapsed=0;$('time').textContent='0:00';
@@ -776,12 +791,13 @@ function buildBoard(){
 function render(){
   const cells=boardEl.children;
   for(let k=0;k<cells.length;k++){
-    const c=cells[k],m=marks[k],want=String(m);
+    const c=cells[k],m=marks[k],lk=m===1&&locks[k]===1,want=m+(lk?'L':'');
     if(c.dataset.m===want)continue;
     c.dataset.m=want;
     c.classList.toggle('bad',m===3);
+    c.classList.toggle('lockx',lk);
     c.innerHTML=m===1||m===3?XMARK:m===2?`<div class="pc">${pieceHTML()}</div>`:'';
-    c.setAttribute('aria-label',`${((k/size)|0)+1}行${k%size+1}列 `+(m===2?'配置':m?'×':'空'));
+    c.setAttribute('aria-label',`${((k/size)|0)+1}行${k%size+1}列 `+(m===2?'配置':lk?'固定した×':m?'×':'空'));
   }
   saveGame();
 }
@@ -804,7 +820,7 @@ function snapshot(){history.push(marks.slice());if(history.length>200)history.sh
 let lucky={};         // あたりが出たマス → 倍率
 function saveGame(){
   if(!P||over)return;
-  store.set('game',{v:1,mode,stage,freeSize,freeTier,P,marks,lives,maxLives,history:history.slice(-30),
+  store.set('game',{v:1,mode,stage,freeSize,freeTier,P,marks,locks,lives,maxLives,history:history.slice(-30),
     elapsed,curValue,pending,baseSum,luckExtra,luckCount,used,lucky});
 }
 function clearGame(){try{localStorage.removeItem('nawabari.game');}catch(e){}}
@@ -815,7 +831,7 @@ function restoreGame(){
   size=g.P.n;P=g.P;
   U=units(size,P.reg);
   peerCache=[...Array(size*size)].map((_,k)=>peers(size,P.reg,k));
-  marks=g.marks;lives=g.lives;maxLives=g.maxLives;history=g.history||[];over=false;
+  marks=g.marks;locks=g.locks||new Array(size*size).fill(0);lives=g.lives;maxLives=g.maxLives;history=g.history||[];over=false;
   curValue=g.curValue;pending=g.pending;baseSum=g.baseSum;luckExtra=g.luckExtra;luckCount=g.luckCount;$('pend').textContent=yen(pending);
   used=g.used||{};lucky=g.lucky||{};glassMode=false;
   t0=null;elapsed=g.elapsed||0;$('time').textContent=fmt(elapsed);
@@ -983,7 +999,7 @@ boardEl.addEventListener('pointermove',e=>{
   if(!drag.moved){
     drag.moved=true;
     // なぞり開始セルの状態で「付ける」か「消す」かを決める
-    drag.mode=marks[drag.start]===1?'erase':'mark';
+    drag.mode=marks[drag.start]===1&&!locks[drag.start]?'erase':'mark';
     snapshot();drag.snap=true;startTimer();
     applyDrag(drag.start);
   }
@@ -991,7 +1007,7 @@ boardEl.addEventListener('pointermove',e=>{
 });
 function applyDrag(k){
   if(drag.mode==='mark'&&marks[k]===0)marks[k]=1;
-  else if(drag.mode==='erase'&&marks[k]===1)marks[k]=0;
+  else if(drag.mode==='erase'&&marks[k]===1&&!locks[k])marks[k]=0;
   render();
 }
 function endDrag(){
@@ -1003,11 +1019,13 @@ function endDrag(){
       // ダブルタップ：1回目の×切り替えを戻してから置く
       if(lastTap.toggled){marks=history.pop();}
       lastTap=null;
-      if(marks[k]===0||marks[k]===1){snapshot();startTimer();tryPlace(k);}
+      if(marks[k]===1&&locks[k]){setMsg('固定した×には置けません。「固定を解除」で外せます');render();}
+      else if(marks[k]===0||marks[k]===1){snapshot();startTimer();tryPlace(k);}
       else render();
     }else{
       const m=marks[k];let toggled=false;
-      if(m===0){snapshot();marks[k]=1;toggled=true;}
+      if(m===1&&locks[k])setMsg('固定した×です。「固定を解除」で外せます');
+      else if(m===0){snapshot();marks[k]=1;toggled=true;}
       else if(m===1){snapshot();marks[k]=0;toggled=true;}
       if(toggled){startTimer();render();}
       lastTap={k,t:now,toggled};
@@ -1024,7 +1042,23 @@ $('undoBtn').onclick=()=>{
   const prev=history.pop();
   // 間違い×（ライフ消費）は取り消せないように保持
   for(let k=0;k<prev.length;k++)if(marks[k]===3)prev[k]=3;
+  // 固定した×も残す
+  for(let k=0;k<prev.length;k++)if(locks[k]&&marks[k]===1)prev[k]=1;
   marks=prev;render();setMsg('1手戻しました');
+};
+$('lockBtn').onclick=()=>{
+  if(over||!P)return;
+  let n=0;
+  for(let k=0;k<marks.length;k++)if(marks[k]===1&&!locks[k]){locks[k]=1;n++;}
+  render();
+  setMsg(n?`×を${n}個固定しました。タップしても消えません`:'新しく固定する×はありません');
+};
+$('unlockBtn').onclick=()=>{
+  if(over||!P)return;
+  const n=locks.filter(v=>v).length;
+  locks=new Array(marks.length).fill(0);
+  render();
+  setMsg(n?`固定を${n}個解除しました`:'固定した×はありません');
 };
 $('newBtn').onclick=()=>newPuzzle();
 $('restartBtn').onclick=()=>{if(P)newPuzzle(P.seed);};
@@ -1204,7 +1238,7 @@ let sc=null; // {price,mult,revealed}
 function openShop(){
   $('shopWallet').textContent=yen(wallet);
   const i=titleIndex(),cur=TITLES[i],nx=TITLES[i+1];
-  $('titleNow').textContent=cur[1];$('earnedNow').textContent=`これまでに稼いだ額 ${yen(earned)}`;
+  $('titleNow').textContent=cur[1];$('earnedNow').textContent=`これまでに稼いだ額 ${yen(earned)}`;$('spentNow').textContent=`これまでに使った額 ${yen(spent)}`;
   if(nx){const pct=Math.min(100,(earned-cur[0])/(nx[0]-cur[0])*100);$('titleBar').style.width=pct.toFixed(1)+'%';$('titleNext').textContent=`次の「${nx[1]}」まであと ${yen(nx[0]-earned)}`;}
   else{$('titleBar').style.width='100%';$('titleNext').textContent='最高の称号です';}
   renderScratch();renderGoods();renderBuilding();renderHouse();renderFurniture();
